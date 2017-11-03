@@ -2,6 +2,11 @@
 -define(DEFAULT_CALLBACK_GET, erlang:get('@aoi') ).
 -define(DEFAULT_CALLBACK_PUT, fun(Aoi) -> erlang:put('@aoi', Aoi) end).
 
+-define(AOI_EVENT_DICT, '@aoi_event_dict').
+-define(AOI_EVENT_ADD_OBJECT, add_object).
+-define(AOI_EVENT_REMOVE_OBJECT, remove_object).
+-define(AOI_EVENT_UPDATE_OBJECT, update_object).
+
 -record(aoi,{
 		width
 		,height
@@ -33,9 +38,5 @@
 -record(aoi_pos, {
 		x
 		,y
+		,dir
 	}).
-
--define(AOI_OBJ_MODE_WATCHER, 1).
--define(AOI_OBJ_MODE_MARKER, 2).
--define(AOI_OBJ_MODE_MOVE, 4).
--define(AOI_OBJ_MODE_DROP, 8).
