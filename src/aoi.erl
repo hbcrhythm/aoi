@@ -3,7 +3,7 @@
 -include("aoi.hrl").
 
 %% API exports
--export([aoi/5, aoi/6, add_obj/1, add_obj/3, remove_obj/1, remove_obj/3, update_obj/2, update_obj/4]).
+-export([aoi/5, aoi/6, add_obj/1, add_obj/3, remove_obj/1, remove_obj/3, update_obj/2, update_obj/4, add_watcher/2, add_watcher/4, remove_watcher/2, remove_watcher/4, update_watcher/4, update_watcher/6]).
 -export([get_ids_by_pos/2, get_ids_by_pos/3, get_ids_by_type/3, get_ids_by_type/4]).
 -export([param2obj/5, param2pos/3, obj2param/1, pos2param/1]).
 
@@ -99,8 +99,119 @@ update_obj(Obj = #aoi_obj{pos = OldPos}, NewPos, Aoi = #aoi{towers = Towers}, Ca
 		end
 	end.
 
-add_watcher(Watcher, Pos, Range) ->
-	
+add_watcher(Watcher, Range) ->
+	add_watcher(Watcher, Range, ?DEFAULT_CALLBACK_GET, ?DEFAULT_CALLBACK_PUT).
+
+add_watcher(Watcher = #aoi_obj{pos = Pos}, Range, Aoi = #aoi{max_x = MaxX, max_y = MaxY, towers = Towers, range_limit = RangeLimit}, Callback) ->
+	Range >= 0 andalso begin 
+		P = trans_pos(Pos, Aoi),
+		Range2 = case Range >= RangeLimit of
+			true -> RangeLimit;
+			false ->Range
+		end, 
+		{{StartX, StartY}, {EndX, EndY}} = get_pos_limit(P, Range2, {MaxX, MaxY}),
+		F = fun({X, Y} , Acc) ->
+			{value, Tower} = gb_trees:lookup({X, Y}, Acc),
+			Tower2 = aoi_tower:add_watcher(Watcher, Tower),
+			gb_trees:insert({X, Y}, Tower2, Acc)
+		end,
+		Towers2 = lists:foldl(F, Towers, [{X,Y} || X <- lists:seq(StartX, EndX), Y <- lists:seq(StartY, EndY)]),
+		Aoi2 = Aoi#aoi{towers = Towers2},
+		Callback(Aoi2),
+		true
+	end.	
+
+remove_watcher(Watcher, Range) ->
+	remove_watcher(Watcher, Range, ?DEFAULT_CALLBACK_GET, ?DEFAULT_CALLBACK_PUT).
+remove_watcher(Watcher = #aoi_obj{pos = Pos}, Range, Aoi = #aoi{max_x = MaxX, max_y = MaxY, towers = Towers, range_limit = RangeLimit}, Callback) ->
+	Range >= 0 andalso begin 
+		P = trans_pos(Pos, Aoi),
+		Range2 = case Range >= RangeLimit of
+			true -> RangeLimit;
+			false ->Range
+		end, 
+		{{StartX, StartY}, {EndX, EndY}} = get_pos_limit(P, Range2, {MaxX, MaxY}),
+		F = fun({X, Y} , Acc) ->
+			{value, Tower} = gb_trees:lookup({X, Y}, Acc),
+			Tower2 = aoi_tower:remove_watcher(Watcher, Tower),
+			gb_trees:insert({X, Y}, Tower2, Acc)
+		end,
+		Towers2 = lists:foldl(F, Towers, [{X,Y} || X <- lists:seq(StartX, EndX), Y <- lists:seq(StartY, EndY)]),
+		Aoi2 = Aoi#aoi{towers = Towers2},
+		Callback(Aoi2),
+		true
+	end.
+
+update_watcher(Watcher, NewPos, OldRange, NewRange) ->
+	update_watcher(Watcher, NewPos, OldRange, NewRange, ?DEFAULT_CALLBACK_GET, ?DEFAULT_CALLBACK_PUT).
+update_watcher(Watcher = #aoi_obj{pos = OldPos}, NewPos, OldRange, NewRange, Aoi = #aoi{max_x = MaxX, max_y = MaxY, range_limit = RangeLimit, towers = Towers}, Callback) ->
+	check_pos(OldPos, Aoi) andalso check_pos(NewPos, Aoi) andalso begin 
+		P1 = #aoi_pos{x = OldX, y = OldY} = trans_pos(OldPos, Aoi),
+		P2 = #aoi_pos{x = NewX, y = NewY} = trans_pos(NewPos, Aoi),
+		if
+		 	OldX =:= NewX andalso OldY =:= NewY ->
+		 		true;
+		 	OldRange < 0 orelse NewRange < 0 ->
+		 		false;
+			true ->
+				OldRange2 = case OldRange > RangeLimit of
+					true -> RangeLimit;
+					false -> OldRange
+				end,
+				NewRange2 = case NewRange > RangeLimit of
+					true -> RangeLimit;
+					false -> NewRange
+				end,
+				{AddTowers, RemoveTowers, _UnChangeTowers} = get_changed_towers(P1, P2, OldRange2, NewRange2, Towers, {MaxX, MaxY}),
+				FAdd = fun(Tower = #aoi_tower{x = X, y = Y}, {AddIds, Acc}) ->
+					Tower2 = aoi_tower:add_watcher(Watcher, Tower),
+					Towers2 = gb_trees:insert({X, Y}, Tower2, Acc),
+					Ids = aoi_tower:get_ids(),
+					{Ids ++ AddIds, Towers2}
+				end,
+				{AddIds, Towers2} = lists:foldl(FAdd, {[], Towers}, AddTowers),
+				FDel = fun(Tower = #aoi_tower{x = X, y = Y}, {DelIds, Acc}) ->
+					Tower2 = aoi_tower:add_watcher(Watcher, Tower),
+					Towers2 = gb_trees:insert({X, Y}, Tower2, Acc),
+					Ids = aoi_tower:get_ids(),
+					{Ids ++ DelIds, Towers2}
+				end,
+				{DelIds, Towers3} = lists:foldl(FDel, {[], Towers2}, RemoveTowers),
+				Aoi2 = Aoi#aoi{towers = Towers3},
+				Callback(Aoi2),
+				cluster_event_stdlib:event2_trigger(?AOI_EVENT_DICT, ?AOI_EVENT_UPDATE_OBJECT, [{Watcher, AddIds, DelIds}]),
+				true
+		end
+	end.
+
+get_changed_towers(P1, P2, R1, R2, Towers, {MaxX, MaxY}) ->
+	Limit1 = {{Start1X, Start1Y}, {End1X, End1Y}} = get_pos_limit(P1, R1, {MaxX, MaxY}),
+	Limit2 = {{Start2X, Start2Y}, {End2X, End2Y}} = get_pos_limit(P2, R2, {MaxX, MaxY}),
+	F = fun({X, Y}, {UnChangeTowers, RemoveTowers}) ->
+		case is_in_rect({X, Y}, Limit2) of
+			true ->
+				{value, Tower} = gb_trees:lookup({X, Y}, Towers),
+				{[Tower | UnChangeTowers], RemoveTowers};
+			false ->
+				{value, Tower} = gb_trees:lookup({X, Y}, Towers),
+				{UnChangeTowers, [Tower | RemoveTowers]}
+		end
+	end,
+	{UnChangeTowers, RemoveTowers} = lists:foldl(F, {[], []}, [{X, Y} || X <- lists:seq(Start1X, End1X), Y <- lists:seq(Start1Y, End1Y)]),
+	F2 = fun({X, Y}, Acc) ->
+		case is_in_rect({X, Y}, Limit1) of
+			true ->
+				Acc;
+			false ->
+				{value, Tower} = gb_trees:lookup({X, Y}, Towers),
+				[Tower | Acc]
+		end
+	end,
+	AddTowers = lists:foldl(F2, [], [{X, Y} || X <- lists:seq(Start2X, End2X), Y <- lists:seq(Start2Y, End2Y)]),
+	{AddTowers, RemoveTowers, UnChangeTowers}.
+
+is_in_rect({X, Y}, {{Start2X, Start2Y}, {End2X, End2Y}}) ->
+	X >= Start2X andalso X =< End2X andalso Y >= Start2Y andalso Y =< End2Y.
 
 param2obj(Id, Type, X, Y, Dir) ->
 	#aoi_obj{id = Id, type = Type, pos = param2pos(X, Y, Dir)}.
