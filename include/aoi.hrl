@@ -12,7 +12,7 @@
 		,height
 		,tower_width
 		,tower_height
-		,range_limit
+		,range_limit = 5
 		,max_x
 		,max_y
 		,towers
@@ -22,7 +22,9 @@
 		x
 		,y
 		,ids = []
-		,watchers = []
+		,watchers = [
+			%%{type, TypeList}
+		]
 		,type_map = [
 			%%{Type, TypeList}
 		]
