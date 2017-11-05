@@ -6,6 +6,7 @@
 -define(AOI_EVENT_ADD_OBJECT, add_object).
 -define(AOI_EVENT_REMOVE_OBJECT, remove_object).
 -define(AOI_EVENT_UPDATE_OBJECT, update_object).
+-define(AOI_EVENT_UPDATE_WATCHER, update_watcher).
 
 -record(aoi,{
 		width
@@ -35,6 +36,7 @@
 		id
 		,pos
 		,type
+		,range %% watcher
 	}).
 
 -record(aoi_pos, {

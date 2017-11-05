@@ -1,5 +1,5 @@
 -module(aoi_tower).
-
+-author('labihbc@gmail.com').
 -include("aoi.hrl").
 
 -export([aoi_tower/2, add/2, remove/2, get_ids/1, get_ids_by_types/2, add_watcher/2, remove_watcher/2]).
@@ -7,7 +7,6 @@
 aoi_tower(X, Y) ->
 	#aoi_tower{x = X, y = Y}.
 
-%% @doc Add an object to tower
 add(#aoi_obj{id = Id, type = Type}, Tower = #aoi_tower{ids = Ids, type_map = TypeMap, size = Size}) ->
 	case lists:member(Id, Ids) of
 		false ->
@@ -49,7 +48,9 @@ remove(#aoi_obj{id = Id, type = Type}, Tower = #aoi_tower{ids = Ids, type_map = 
 add_watcher(#aoi_obj{id = Id, type = Type}, Tower = #aoi_tower{watchers = Watchers}) ->
 	case lists:keyfind(Type, 1, Watchers) of
 		false ->
-			[{Type, [Id]} | Watchers];
+			Watchers2 = [{Type, [Id]} | Watchers],
+			Tower2 = Tower#aoi_tower{watchers = Watchers2},
+			Tower2;
 		{Type, TypeList} ->
 			TypeList2 = [Id | TypeList],
 			Watchers2 = lists:keyreplace(Type, 1, Watchers, {Type, TypeList2}),

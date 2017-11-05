@@ -1,10 +1,10 @@
 -module(aoi).
-
+-author('labihbc@gmail.com').
 -include("aoi.hrl").
 
 %% API exports
--export([aoi/5, aoi/6, add_obj/1, add_obj/3, remove_obj/1, remove_obj/3, update_obj/2, update_obj/4, add_watcher/2, add_watcher/4, remove_watcher/2, remove_watcher/4, update_watcher/4, update_watcher/6]).
--export([get_ids_by_pos/2, get_ids_by_pos/3, get_ids_by_type/3, get_ids_by_type/4]).
+-export([aoi/5, aoi/6, add_obj/1, add_obj/3, remove_obj/1, remove_obj/3, update_obj/2, update_obj/4, add_watcher/1, add_watcher/3, remove_watcher/1, remove_watcher/3, update_watcher/2, update_watcher/3, update_watcher/5]).
+-export([get_ids_by_pos/2, get_ids_by_pos/3, get_ids_by_types/3, get_ids_by_types/4]).
 -export([param2obj/5, param2pos/3, obj2param/1, pos2param/1]).
 
 %%====================================================================
@@ -13,7 +13,7 @@
 
 %% @doc aoi Api function, default process dict save
 aoi(Width, Height, TowerWidth, TowerHeight, Range) ->
-	aoi(Width, Height, TowerWidth, TowerHeight, Range, ?DEFAULT_CALLBACK_GET).
+	aoi(Width, Height, TowerWidth, TowerHeight, Range, ?DEFAULT_CALLBACK_PUT).
 aoi(Width, Height, TowerWidth, TowerHeight, Range, Callback) ->
 	Aoi = #aoi{
 		width = Width
@@ -23,8 +23,7 @@ aoi(Width, Height, TowerWidth, TowerHeight, Range, Callback) ->
 		,range_limit = Range
 		,max_x = trunc(Width / TowerWidth) - 1
 		,max_y = trunc(Height / TowerHeight) - 1
-		% ,towers = [aoi_tower:aoi_tower(X, Y) || X <- trunc(Width / TowerWidth), Y <- trunc(Height / TowerHeight) ]
-		,towers = aoi_towers(trunc(Width / TowerWidth), trunc(Height / TowerHeight))
+		,towers = aoi_towers(trunc(Width / TowerWidth) - 1, trunc(Height / TowerHeight) - 1)
 	},
 	cluster_event_stdlib:init(?AOI_EVENT_DICT),
 	Callback(Aoi).
@@ -35,7 +34,7 @@ aoi_towers(X, Y) ->
 	end,
 	lists:foldl(F, gb_trees:empty(), [{I, J} || I <- lists:seq(0, X) , J <- lists:seq(0, Y)]).
 
-%% @spec add_obj(Obj, Pos) -> bool()
+
 add_obj(Obj = #aoi_obj{}) ->
 	add_obj(Obj, ?DEFAULT_CALLBACK_GET, ?DEFAULT_CALLBACK_PUT).
 add_obj(Obj = #aoi_obj{pos = Pos}, Aoi = #aoi{towers = Towers}, Callback) ->
@@ -44,7 +43,7 @@ add_obj(Obj = #aoi_obj{pos = Pos}, Aoi = #aoi{towers = Towers}, Callback) ->
 		{value, Tower} = gb_trees:lookup({X, Y}, Towers),
 		case aoi_tower:add(Obj, Tower) of
 			Tower2 = #aoi_tower{watchers = Watchers} ->
-				Towers2 = gb_trees:insert({X, Y}, Tower2, Towers),
+				Towers2 = gb_trees:update({X, Y}, Tower2, Towers),
 				Aoi2 = Aoi#aoi{towers = Towers2},
 				Callback(Aoi2),
 				cluster_event_stdlib:event2_trigger(?AOI_EVENT_DICT, ?AOI_EVENT_ADD_OBJECT, [{Obj, Watchers}]),
@@ -62,7 +61,7 @@ remove_obj(Obj = #aoi_obj{pos = Pos}, Aoi = #aoi{towers = Towers}, Callback) ->
 		{value, Tower} = gb_trees:lookup({X, Y}, Towers),
 		case aoi_tower:remove(Obj, Tower) of
 			Tower2 = #aoi_tower{watchers = Watchers} ->				
-				Towers2 = gb_trees:insert({X, Y}, Tower2, Towers),
+				Towers2 = gb_trees:update({X, Y}, Tower2, Towers),
 				Aoi2 = Aoi#aoi{towers = Towers2},
 				Callback(Aoi2),
 				cluster_event_stdlib:event2_trigger(?AOI_EVENT_DICT, ?AOI_EVENT_REMOVE_OBJECT, [{Obj, Watchers}]),
@@ -86,8 +85,8 @@ update_obj(Obj = #aoi_obj{pos = OldPos}, NewPos, Aoi = #aoi{towers = Towers}, Ca
 				{value, NewTower = #aoi_tower{watchers = NewWatchers}} = gb_trees:lookup({NewX, NewY}, Towers),
 				OldTower2 = aoi_tower:remove(Obj, OldTower),
 				NewTower2 = aoi_tower:add(NewObj, NewTower),
-				Towers2 = gb_trees:insert({OldX, OldY}, OldTower2, Towers),
-				Towers3 = gb_trees:insert({NewX, NewY}, NewTower2, Towers2),
+				Towers2 = gb_trees:update({OldX, OldY}, OldTower2, Towers),
+				Towers3 = gb_trees:update({NewX, NewY}, NewTower2, Towers2),
 				Aoi2 = Aoi#aoi{towers = Towers3},
 				Callback(Aoi2),
 				cluster_event_stdlib:event2_trigger(?AOI_EVENT_DICT, ?AOI_EVENT_UPDATE_OBJECT, [{Obj, NewObj, OldWatchers, NewWatchers}]),
@@ -99,10 +98,10 @@ update_obj(Obj = #aoi_obj{pos = OldPos}, NewPos, Aoi = #aoi{towers = Towers}, Ca
 		end
 	end.
 
-add_watcher(Watcher, Range) ->
-	add_watcher(Watcher, Range, ?DEFAULT_CALLBACK_GET, ?DEFAULT_CALLBACK_PUT).
+add_watcher(Watcher) ->
+	add_watcher(Watcher, ?DEFAULT_CALLBACK_GET, ?DEFAULT_CALLBACK_PUT).
 
-add_watcher(Watcher = #aoi_obj{pos = Pos}, Range, Aoi = #aoi{max_x = MaxX, max_y = MaxY, towers = Towers, range_limit = RangeLimit}, Callback) ->
+add_watcher(Watcher = #aoi_obj{pos = Pos, range = Range}, Aoi = #aoi{max_x = MaxX, max_y = MaxY, towers = Towers, range_limit = RangeLimit}, Callback) ->
 	Range >= 0 andalso begin 
 		P = trans_pos(Pos, Aoi),
 		Range2 = case Range >= RangeLimit of
@@ -113,7 +112,7 @@ add_watcher(Watcher = #aoi_obj{pos = Pos}, Range, Aoi = #aoi{max_x = MaxX, max_y
 		F = fun({X, Y} , Acc) ->
 			{value, Tower} = gb_trees:lookup({X, Y}, Acc),
 			Tower2 = aoi_tower:add_watcher(Watcher, Tower),
-			gb_trees:insert({X, Y}, Tower2, Acc)
+			gb_trees:update({X, Y}, Tower2, Acc)
 		end,
 		Towers2 = lists:foldl(F, Towers, [{X,Y} || X <- lists:seq(StartX, EndX), Y <- lists:seq(StartY, EndY)]),
 		Aoi2 = Aoi#aoi{towers = Towers2},
@@ -121,9 +120,9 @@ add_watcher(Watcher = #aoi_obj{pos = Pos}, Range, Aoi = #aoi{max_x = MaxX, max_y
 		true
 	end.	
 
-remove_watcher(Watcher, Range) ->
-	remove_watcher(Watcher, Range, ?DEFAULT_CALLBACK_GET, ?DEFAULT_CALLBACK_PUT).
-remove_watcher(Watcher = #aoi_obj{pos = Pos}, Range, Aoi = #aoi{max_x = MaxX, max_y = MaxY, towers = Towers, range_limit = RangeLimit}, Callback) ->
+remove_watcher(Watcher) ->
+	remove_watcher(Watcher, ?DEFAULT_CALLBACK_GET, ?DEFAULT_CALLBACK_PUT).
+remove_watcher(Watcher = #aoi_obj{pos = Pos, range = Range}, Aoi = #aoi{max_x = MaxX, max_y = MaxY, towers = Towers, range_limit = RangeLimit}, Callback) ->
 	Range >= 0 andalso begin 
 		P = trans_pos(Pos, Aoi),
 		Range2 = case Range >= RangeLimit of
@@ -134,7 +133,7 @@ remove_watcher(Watcher = #aoi_obj{pos = Pos}, Range, Aoi = #aoi{max_x = MaxX, ma
 		F = fun({X, Y} , Acc) ->
 			{value, Tower} = gb_trees:lookup({X, Y}, Acc),
 			Tower2 = aoi_tower:remove_watcher(Watcher, Tower),
-			gb_trees:insert({X, Y}, Tower2, Acc)
+			gb_trees:update({X, Y}, Tower2, Acc)
 		end,
 		Towers2 = lists:foldl(F, Towers, [{X,Y} || X <- lists:seq(StartX, EndX), Y <- lists:seq(StartY, EndY)]),
 		Aoi2 = Aoi#aoi{towers = Towers2},
@@ -142,9 +141,11 @@ remove_watcher(Watcher = #aoi_obj{pos = Pos}, Range, Aoi = #aoi{max_x = MaxX, ma
 		true
 	end.
 
-update_watcher(Watcher, NewPos, OldRange, NewRange) ->
-	update_watcher(Watcher, NewPos, OldRange, NewRange, ?DEFAULT_CALLBACK_GET, ?DEFAULT_CALLBACK_PUT).
-update_watcher(Watcher = #aoi_obj{pos = OldPos}, NewPos, OldRange, NewRange, Aoi = #aoi{max_x = MaxX, max_y = MaxY, range_limit = RangeLimit, towers = Towers}, Callback) ->
+update_watcher(Watcher = #aoi_obj{range = Range}, NewPos) ->
+	update_watcher(Watcher, NewPos, Range).
+update_watcher(Watcher, NewPos, NewRange) ->
+	update_watcher(Watcher, NewPos, NewRange, ?DEFAULT_CALLBACK_GET, ?DEFAULT_CALLBACK_PUT).
+update_watcher(Watcher = #aoi_obj{pos = OldPos, range = OldRange}, NewPos, NewRange, Aoi = #aoi{max_x = MaxX, max_y = MaxY, range_limit = RangeLimit, towers = Towers}, Callback) ->
 	check_pos(OldPos, Aoi) andalso check_pos(NewPos, Aoi) andalso begin 
 		P1 = #aoi_pos{x = OldX, y = OldY} = trans_pos(OldPos, Aoi),
 		P2 = #aoi_pos{x = NewX, y = NewY} = trans_pos(NewPos, Aoi),
@@ -165,21 +166,21 @@ update_watcher(Watcher = #aoi_obj{pos = OldPos}, NewPos, OldRange, NewRange, Aoi
 				{AddTowers, RemoveTowers, _UnChangeTowers} = get_changed_towers(P1, P2, OldRange2, NewRange2, Towers, {MaxX, MaxY}),
 				FAdd = fun(Tower = #aoi_tower{x = X, y = Y}, {AddIds, Acc}) ->
 					Tower2 = aoi_tower:add_watcher(Watcher, Tower),
-					Towers2 = gb_trees:insert({X, Y}, Tower2, Acc),
-					Ids = aoi_tower:get_ids(),
-					{Ids ++ AddIds, Towers2}
+					Acc2 = gb_trees:update({X, Y}, Tower2, Acc),
+					Ids = aoi_tower:get_ids(Tower2),
+					{Ids ++ AddIds, Acc2}
 				end,
 				{AddIds, Towers2} = lists:foldl(FAdd, {[], Towers}, AddTowers),
 				FDel = fun(Tower = #aoi_tower{x = X, y = Y}, {DelIds, Acc}) ->
 					Tower2 = aoi_tower:add_watcher(Watcher, Tower),
-					Towers2 = gb_trees:insert({X, Y}, Tower2, Acc),
-					Ids = aoi_tower:get_ids(),
-					{Ids ++ DelIds, Towers2}
+					Acc2 = gb_trees:update({X, Y}, Tower2, Acc),
+					Ids = aoi_tower:get_ids(Tower2),
+					{Ids ++ DelIds, Acc2}
 				end,
 				{DelIds, Towers3} = lists:foldl(FDel, {[], Towers2}, RemoveTowers),
 				Aoi2 = Aoi#aoi{towers = Towers3},
 				Callback(Aoi2),
-				cluster_event_stdlib:event2_trigger(?AOI_EVENT_DICT, ?AOI_EVENT_UPDATE_OBJECT, [{Watcher, AddIds, DelIds}]),
+				cluster_event_stdlib:event2_trigger(?AOI_EVENT_DICT, ?AOI_EVENT_UPDATE_WATCHER, [{Watcher, AddIds, DelIds}]),
 				true
 		end
 	end.
@@ -240,9 +241,9 @@ get_ids_by_pos(Pos, Range, Aoi = #aoi{max_x = MaxX, max_y = MaxY, towers = Tower
 		lists:foldl(F, [], [{X,Y} || X <- lists:seq(StartX, EndX), Y <- lists:seq(StartY, EndY)])
 	end.
 
-get_ids_by_type(Pos, Range, Types) ->
-	get_ids_by_type(Pos, Range, Types, ?DEFAULT_CALLBACK_GET).
-get_ids_by_type(Pos, Range, Types, Aoi = #aoi{range_limit = RangeLimit, max_x = MaxX, max_y = MaxY, towers = Towers}) ->
+get_ids_by_types(Pos, Range, Types) when is_list(Types) ->
+	get_ids_by_types(Pos, Range, Types, ?DEFAULT_CALLBACK_GET).
+get_ids_by_types(Pos, Range, Types, Aoi = #aoi{range_limit = RangeLimit, max_x = MaxX, max_y = MaxY, towers = Towers}) when is_list(Types) ->
 	check_pos(Pos, Aoi) andalso Range > 0 andalso Range =< RangeLimit andalso begin
 		P = trans_pos(Pos, Aoi),
 		{{StartX, StartY}, {EndX, EndY}} = get_pos_limit(P, Range, {MaxX, MaxY}),

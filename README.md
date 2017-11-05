@@ -3,7 +3,6 @@ aoi
 
 An OTP library
 
-Build
------
+The aoi library include a set of aoi interface, and an implementation of tower aoi algorithm.
 
-    $ rebar3 compile
+see aoi_test for example.
