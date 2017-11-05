@@ -28,13 +28,6 @@ aoi(Width, Height, TowerWidth, TowerHeight, Range, Callback) ->
 	cluster_event_stdlib:init(?AOI_EVENT_DICT),
 	Callback(Aoi).
 
-aoi_towers(X, Y) ->
-	F = fun({I, J}, Acc) ->
-		gb_trees:insert({I, J}, aoi_tower:aoi_tower(I, J), Acc)
-	end,
-	lists:foldl(F, gb_trees:empty(), [{I, J} || I <- lists:seq(0, X) , J <- lists:seq(0, Y)]).
-
-
 add_obj(Obj = #aoi_obj{}) ->
 	add_obj(Obj, ?DEFAULT_CALLBACK_GET, ?DEFAULT_CALLBACK_PUT).
 add_obj(Obj = #aoi_obj{pos = Pos}, Aoi = #aoi{towers = Towers}, Callback) ->
@@ -100,7 +93,6 @@ update_obj(Obj = #aoi_obj{pos = OldPos}, NewPos, Aoi = #aoi{towers = Towers}, Ca
 
 add_watcher(Watcher) ->
 	add_watcher(Watcher, ?DEFAULT_CALLBACK_GET, ?DEFAULT_CALLBACK_PUT).
-
 add_watcher(Watcher = #aoi_obj{pos = Pos, range = Range}, Aoi = #aoi{max_x = MaxX, max_y = MaxY, towers = Towers, range_limit = RangeLimit}, Callback) ->
 	Range >= 0 andalso begin 
 		P = trans_pos(Pos, Aoi),
@@ -185,6 +177,55 @@ update_watcher(Watcher = #aoi_obj{pos = OldPos, range = OldRange}, NewPos, NewRa
 		end
 	end.
 
+param2obj(Id, Type, X, Y, Dir) ->
+	#aoi_obj{id = Id, type = Type, pos = param2pos(X, Y, Dir)}.
+param2pos(X, Y, Dir) ->
+	#aoi_pos{x = X, y = Y, dir = Dir}.
+
+obj2param(#aoi_obj{id = Id, type = Type, pos = Pos}) ->
+	{X, Y, Dir} = pos2param(Pos),
+	{Id, Type, X, Y, Dir}.
+pos2param(#aoi_pos{x = X, y = Y, dir = Dir}) ->
+	{X, Y, Dir}.
+
+get_ids_by_pos(Pos, Range) ->
+	get_ids_by_pos(Pos, Range, ?DEFAULT_CALLBACK_GET).
+get_ids_by_pos(Pos, Range, Aoi = #aoi{max_x = MaxX, max_y = MaxY, towers = Towers}) ->
+	check_pos(Pos, Aoi) andalso Range > 0 andalso begin 
+		P = trans_pos(Pos, Aoi),
+		{{StartX, StartY}, {EndX, EndY}} = get_pos_limit(P, Range, {MaxX, MaxY}),
+		F = fun({X, Y} , Acc) ->
+			{value, Tower} = gb_trees:lookup({X, Y}, Towers),
+			Ids = aoi_tower:get_ids(Tower),
+			Ids ++ Acc
+		end,
+		lists:foldl(F, [], [{X,Y} || X <- lists:seq(StartX, EndX), Y <- lists:seq(StartY, EndY)])
+	end.
+
+get_ids_by_types(Pos, Range, Types) when is_list(Types) ->
+	get_ids_by_types(Pos, Range, Types, ?DEFAULT_CALLBACK_GET).
+get_ids_by_types(Pos, Range, Types, Aoi = #aoi{range_limit = RangeLimit, max_x = MaxX, max_y = MaxY, towers = Towers}) when is_list(Types) ->
+	check_pos(Pos, Aoi) andalso Range > 0 andalso Range =< RangeLimit andalso begin
+		P = trans_pos(Pos, Aoi),
+		{{StartX, StartY}, {EndX, EndY}} = get_pos_limit(P, Range, {MaxX, MaxY}),
+		F = fun({X, Y} , Acc) ->
+			{value, Tower} = gb_trees:lookup({X, Y}, Towers),
+			Result = aoi_tower:get_ids_by_types(Types, Tower),
+			add_map_by_types(Result, Acc)
+		end,
+		lists:foldl(F, [], [{X,Y} || X <- lists:seq(StartX, EndX), Y <- lists:seq(StartY, EndY)])
+	end.
+
+%%====================================================================
+%% Internal functions
+%%====================================================================
+
+aoi_towers(X, Y) ->
+	F = fun({I, J}, Acc) ->
+		gb_trees:insert({I, J}, aoi_tower:aoi_tower(I, J), Acc)
+	end,
+	lists:foldl(F, gb_trees:empty(), [{I, J} || I <- lists:seq(0, X) , J <- lists:seq(0, Y)]).
+
 get_changed_towers(P1, P2, R1, R2, Towers, {MaxX, MaxY}) ->
 	Limit1 = {{Start1X, Start1Y}, {End1X, End1Y}} = get_pos_limit(P1, R1, {MaxX, MaxY}),
 	Limit2 = {{Start2X, Start2Y}, {End2X, End2Y}} = get_pos_limit(P2, R2, {MaxX, MaxY}),
@@ -213,47 +254,6 @@ get_changed_towers(P1, P2, R1, R2, Towers, {MaxX, MaxY}) ->
 
 is_in_rect({X, Y}, {{Start2X, Start2Y}, {End2X, End2Y}}) ->
 	X >= Start2X andalso X =< End2X andalso Y >= Start2Y andalso Y =< End2Y.
-
-param2obj(Id, Type, X, Y, Dir) ->
-	#aoi_obj{id = Id, type = Type, pos = param2pos(X, Y, Dir)}.
-param2pos(X, Y, Dir) ->
-	#aoi_pos{x = X, y = Y, dir = Dir}.
-
-obj2param(#aoi_obj{id = Id, type = Type, pos = Pos}) ->
-	{X, Y, Dir} = pos2param(Pos),
-	{Id, Type, X, Y, Dir}.
-pos2param(#aoi_pos{x = X, y = Y, dir = Dir}) ->
-	{X, Y, Dir}.
-
-%% @spec get_ids_by_pos(Pos, Range) -> list()
-%% @doc get all object ids from tower aoi by pos and range
-get_ids_by_pos(Pos, Range) ->
-	get_ids_by_pos(Pos, Range, ?DEFAULT_CALLBACK_GET).
-get_ids_by_pos(Pos, Range, Aoi = #aoi{max_x = MaxX, max_y = MaxY, towers = Towers}) ->
-	check_pos(Pos, Aoi) andalso Range > 0 andalso begin 
-		P = trans_pos(Pos, Aoi),
-		{{StartX, StartY}, {EndX, EndY}} = get_pos_limit(P, Range, {MaxX, MaxY}),
-		F = fun({X, Y} , Acc) ->
-			{value, Tower} = gb_trees:lookup({X, Y}, Towers),
-			Ids = aoi_tower:get_ids(Tower),
-			Ids ++ Acc
-		end,
-		lists:foldl(F, [], [{X,Y} || X <- lists:seq(StartX, EndX), Y <- lists:seq(StartY, EndY)])
-	end.
-
-get_ids_by_types(Pos, Range, Types) when is_list(Types) ->
-	get_ids_by_types(Pos, Range, Types, ?DEFAULT_CALLBACK_GET).
-get_ids_by_types(Pos, Range, Types, Aoi = #aoi{range_limit = RangeLimit, max_x = MaxX, max_y = MaxY, towers = Towers}) when is_list(Types) ->
-	check_pos(Pos, Aoi) andalso Range > 0 andalso Range =< RangeLimit andalso begin
-		P = trans_pos(Pos, Aoi),
-		{{StartX, StartY}, {EndX, EndY}} = get_pos_limit(P, Range, {MaxX, MaxY}),
-		F = fun({X, Y} , Acc) ->
-			{value, Tower} = gb_trees:lookup({X, Y}, Towers),
-			Result = aoi_tower:get_ids_by_types(Types, Tower),
-			add_map_by_types(Result, Acc)
-		end,
-		lists:foldl(F, [], [{X,Y} || X <- lists:seq(StartX, EndX), Y <- lists:seq(StartY, EndY)])
-	end.
 
 add_map_by_types(TypeMap, Result) ->
 	F = fun({Type, TypeList}, Acc) ->
@@ -294,8 +294,3 @@ get_pos_limit(#aoi_pos{x = X, y = Y}, Range, {MaxX, MaxY}) ->
 			{Y - Range, Y + Range}
 	end,
 	{{StartX, StartY}, {EndX, EndY}}.
-
-
-%%====================================================================
-%% Internal functions
-%%====================================================================
