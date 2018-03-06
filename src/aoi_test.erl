@@ -12,11 +12,11 @@ test() ->
 	aoi:aoi(1000, 1000, 100, 100, 3),
 	Types = [player, monster, npc],
 	Count = 6,
-	random:seed(),
+	% random:seed(),
 	F = fun(Id) ->
-		Random = random:uniform(9),
-		Type = random:uniform(3),
-		Ranom2 = random:uniform(100),
+		Random = rand:uniform(9),
+		Type = rand:uniform(3),
+		Ranom2 = rand:uniform(100),
 		AoiObj = #aoi_obj{id = Id, pos = #aoi_pos{x = Random * Ranom2, y = Random * Ranom2}, type = lists:nth(Type, Types)},
 		io:format("~w~n",[AoiObj]),
 		aoi:add_obj(AoiObj)
