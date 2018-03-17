@@ -5,7 +5,7 @@
 %% API exports
 -export([aoi/5, aoi/6, add_obj/1, add_obj/3, remove_obj/1, remove_obj/3, update_obj/2, update_obj/4, add_watcher/1, add_watcher/3, remove_watcher/1, remove_watcher/3, update_watcher/2, update_watcher/3, update_watcher/5]).
 -export([get_ids_by_pos/2, get_ids_by_pos/3, get_ids_by_types/3, get_ids_by_types/4]).
--export([param2obj/5, param2pos/3, obj2param/1, pos2param/1]).
+-export([param2obj/6, param2pos/3, obj2param/1, pos2param/1]).
 
 %%====================================================================
 %% API functions
@@ -177,14 +177,14 @@ update_watcher(Watcher = #aoi_obj{pos = OldPos, range = OldRange}, NewPos, NewRa
 		end
 	end.
 
-param2obj(Id, Type, X, Y, Dir) ->
-	#aoi_obj{id = Id, type = Type, pos = param2pos(X, Y, Dir)}.
+param2obj(Id, Type, X, Y, Dir, Range) ->
+	#aoi_obj{id = Id, type = Type, pos = param2pos(X, Y, Dir), range = Range}.
 param2pos(X, Y, Dir) ->
 	#aoi_pos{x = X, y = Y, dir = Dir}.
 
-obj2param(#aoi_obj{id = Id, type = Type, pos = Pos}) ->
+obj2param(#aoi_obj{id = Id, type = Type, pos = Pos, range = Range}) ->
 	{X, Y, Dir} = pos2param(Pos),
-	{Id, Type, X, Y, Dir}.
+	{Id, Type, X, Y, Dir, Range}.
 pos2param(#aoi_pos{x = X, y = Y, dir = Dir}) ->
 	{X, Y, Dir}.
 
