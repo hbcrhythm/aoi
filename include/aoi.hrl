@@ -24,10 +24,10 @@
 		,y
 		,ids = []
 		,watchers = [
-			%%{type, TypeList}
+			%%{type, TypeList}	typeList 为ids
 		]
 		,type_map = [
-			%%{Type, TypeList}
+			%%{Type, TypeList}	typeList 为ids
 		]
 		,size = 0
 	}).

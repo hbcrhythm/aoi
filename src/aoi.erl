@@ -82,7 +82,8 @@ update_obj(Obj = #aoi_obj{pos = OldPos}, NewPos, Aoi = #aoi{towers = Towers}, Ca
 				Towers3 = gb_trees:update({NewX, NewY}, NewTower2, Towers2),
 				Aoi2 = Aoi#aoi{towers = Towers3},
 				Callback(Aoi2),
-				cluster_event_stdlib:event2_trigger(?AOI_EVENT_DICT, ?AOI_EVENT_UPDATE_OBJECT, [{Obj, NewObj, OldWatchers, NewWatchers}]),
+				{OldWatchers, DelWatchers, AddWatchers} = neaten(OldWatchers, NewWatchers),
+				cluster_event_stdlib:event2_trigger(?AOI_EVENT_DICT, ?AOI_EVENT_UPDATE_OBJECT, [{Obj, NewObj, OldWatchers, DelWatchers, AddWatchers}]),
 				true;
 			true ->
 				{value, #aoi_tower{watchers = OldWatchers}} = gb_trees:lookup({OldX, OldY}, Towers),
@@ -294,3 +295,18 @@ get_pos_limit(#aoi_pos{x = X, y = Y}, Range, {MaxX, MaxY}) ->
 			{Y - Range, Y + Range}
 	end,
 	{{StartX, StartY}, {EndX, EndY}}.
+
+neaten([{Type, Ids} | T], NewWatchers) ->
+	neaten([{Type, Ids} | T], NewWatchers, {[], [], []}).
+neaten([{Type, Ids} | T], NewWatchers, {OldWatcherIdsAcc, DelWatcherIdsAcc, AddWatcherIdsAcc}) ->
+	case lists:keyfind(Type, 1, NewWatchers) of
+		false ->
+			neaten(T, NewWatchers, {OldWatcherIdsAcc, [{Type, Ids} | DelWatcherIdsAcc ] , AddWatcherIdsAcc});
+		{Type, NewWatcherTypeIds} ->
+			AddWatcherIds = NewWatcherTypeIds -- Ids,
+			OldWatcherIds = NewWatcherTypeIds -- AddWatcherIds,
+			DelWatcherIds = Ids -- OldWatcherIds,
+			neaten(T, NewWatchers, { [{Type, OldWatcherIds} | OldWatcherIdsAcc], [{Type, DelWatcherIds} | DelWatcherIdsAcc], [{Type, AddWatcherIds} | AddWatcherIdsAcc] })
+	end;
+neaten([], _, {OldWatcherIdsAcc, DelWatcherIdsAcc, AddWatcherIdsAcc}) ->
+	{OldWatcherIdsAcc, DelWatcherIdsAcc, AddWatcherIdsAcc}.
