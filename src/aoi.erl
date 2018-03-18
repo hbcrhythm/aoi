@@ -71,9 +71,9 @@ update_obj(Obj = #aoi_obj{pos = OldPos}, NewPos, Aoi = #aoi{towers = Towers}, Ca
 	begin
 		#aoi_pos{x = OldX, y = OldY} = trans_pos(OldPos, Aoi),
 		#aoi_pos{x = NewX, y = NewY} = trans_pos(NewPos, Aoi),
+		NewObj = Obj#aoi_obj{pos = NewPos},
 		case OldX =:= NewX andalso OldY =:= NewY of
 			false ->
-				NewObj = Obj#aoi_obj{pos = NewPos},
 				{value, OldTower = #aoi_tower{watchers = OldWatchers}} = gb_trees:lookup({OldX, OldY}, Towers),
 				{value, NewTower = #aoi_tower{watchers = NewWatchers}} = gb_trees:lookup({NewX, NewY}, Towers),
 				OldTower2 = aoi_tower:remove(Obj, OldTower),
@@ -83,11 +83,11 @@ update_obj(Obj = #aoi_obj{pos = OldPos}, NewPos, Aoi = #aoi{towers = Towers}, Ca
 				Aoi2 = Aoi#aoi{towers = Towers3},
 				Callback(Aoi2),
 				{OldWatchers, DelWatchers, AddWatchers} = neaten(OldWatchers, NewWatchers),
-				cluster_event_stdlib:event2_trigger(?AOI_EVENT_DICT, ?AOI_EVENT_UPDATE_OBJECT, [{Obj, NewObj, OldWatchers, DelWatchers, AddWatchers}]),
+				cluster_event_stdlib:event2_trigger(?AOI_EVENT_DICT, ?AOI_EVENT_UPDATE_OBJECT, [{NewObj, OldWatchers, DelWatchers, AddWatchers}]),
 				true;
 			true ->
 				{value, #aoi_tower{watchers = OldWatchers}} = gb_trees:lookup({OldX, OldY}, Towers),
-				cluster_event_stdlib:event2_trigger(?AOI_EVENT_DICT, ?AOI_EVENT_UPDATE_OBJECT, [{Obj, OldWatchers}]),
+				cluster_event_stdlib:event2_trigger(?AOI_EVENT_DICT, ?AOI_EVENT_UPDATE_OBJECT, [{NewObj, OldWatchers}]),
 				true				
 		end
 	end.
