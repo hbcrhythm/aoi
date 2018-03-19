@@ -82,8 +82,8 @@ update_obj(Obj = #aoi_obj{pos = OldPos}, NewPos, Aoi = #aoi{towers = Towers}, Ca
 				Towers3 = gb_trees:update({NewX, NewY}, NewTower2, Towers2),
 				Aoi2 = Aoi#aoi{towers = Towers3},
 				Callback(Aoi2),
-				{OldWatchers, DelWatchers, AddWatchers} = neaten(OldWatchers, NewWatchers),
-				cluster_event_stdlib:event2_trigger(?AOI_EVENT_DICT, ?AOI_EVENT_UPDATE_OBJECT, [{NewObj, OldWatchers, DelWatchers, AddWatchers}]),
+				{OldWatchers2, DelWatchers, AddWatchers} = neaten(OldWatchers, NewWatchers),
+				cluster_event_stdlib:event2_trigger(?AOI_EVENT_DICT, ?AOI_EVENT_UPDATE_OBJECT, [{NewObj, OldWatchers2, DelWatchers, AddWatchers}]),
 				true;
 			true ->
 				{value, #aoi_tower{watchers = OldWatchers}} = gb_trees:lookup({OldX, OldY}, Towers),
