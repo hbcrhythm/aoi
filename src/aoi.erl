@@ -165,7 +165,7 @@ update_watcher(Watcher = #aoi_obj{pos = OldPos, range = OldRange}, NewPos, NewRa
 				end,
 				{AddIds, Towers2} = lists:foldl(FAdd, {[], Towers}, AddTowers),
 				FDel = fun(Tower = #aoi_tower{x = X, y = Y}, {DelIds, Acc}) ->
-					Tower2 = aoi_tower:add_watcher(Watcher, Tower),
+					Tower2 = aoi_tower:remove_watcher(Watcher, Tower),
 					Acc2 = gb_trees:update({X, Y}, Tower2, Acc),
 					Ids = aoi_tower:get_ids(Tower2),
 					{Ids ++ DelIds, Acc2}
