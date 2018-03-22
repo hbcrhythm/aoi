@@ -24,7 +24,7 @@ add(#aoi_obj{id = Id, type = Type}, Tower = #aoi_tower{ids = Ids, type_map = Typ
 					Tower2
 			end;
 		true ->
-			true
+			Tower
 	end.
 
 remove(#aoi_obj{id = Id, type = Type}, Tower = #aoi_tower{ids = Ids, type_map = TypeMap, size = Size}) ->
@@ -39,10 +39,10 @@ remove(#aoi_obj{id = Id, type = Type}, Tower = #aoi_tower{ids = Ids, type_map = 
 					Tower2 = Tower#aoi_tower{ids = Ids2, type_map = TypeMap2, size = Size2},
 					Tower2;
 				false ->
-					true	
+					Tower	
 			end;
 		false ->
-			true
+			Tower
 	end.
 
 add_watcher(#aoi_obj{id = Id, type = Type}, Tower = #aoi_tower{watchers = Watchers}) ->
