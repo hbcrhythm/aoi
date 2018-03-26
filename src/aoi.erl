@@ -277,23 +277,10 @@ trans_pos(#aoi_pos{x = X, y = Y}, #aoi{tower_width = TowerWidth, tower_height = 
 	#aoi_pos{x = trunc(X / TowerWidth), y = trunc(Y / TowerHeight)}.	
 
 get_pos_limit(#aoi_pos{x = X, y = Y}, Range, {MaxX, MaxY}) ->
-	{StartX, EndX} = if
-		X - Range < 0 ->
-			{0, X + Range};
-		X + Range >= MaxX ->
-			{X - Range, MaxX};
-		true ->
-			{X - Range, X + Range}
-	end,
-
-	{StartY, EndY} = if
-		Y - Range < 0 ->
-			{0, Y + Range};
-		Y + Range >= MaxY ->
-			{Y - Range, MaxY};
-		true ->
-			{Y - Range, Y + Range}
-	end,
+	StartX = max(0, X - Range),
+	EndX = min(MaxX, X + Range),
+	StartY = max(0, Y - Range),
+	EndY = min(MaxY, Y + Range),
 	{{StartX, StartY}, {EndX, EndY}}.
 
 neaten([{Type, Ids} | T], NewWatchers) ->
