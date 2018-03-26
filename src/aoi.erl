@@ -280,7 +280,7 @@ get_pos_limit(#aoi_pos{x = X, y = Y}, Range, {MaxX, MaxY}) ->
 	{StartX, EndX} = if
 		X - Range < 0 ->
 			{0, X + Range};
-		X + Range > MaxX ->
+		X + Range >= MaxX ->
 			{X - Range, MaxX};
 		true ->
 			{X - Range, X + Range}
@@ -289,7 +289,7 @@ get_pos_limit(#aoi_pos{x = X, y = Y}, Range, {MaxX, MaxY}) ->
 	{StartY, EndY} = if
 		Y - Range < 0 ->
 			{0, Y + Range};
-		Y + Range > MaxY ->
+		Y + Range >= MaxY ->
 			{Y - Range, MaxY};
 		true ->
 			{Y - Range, Y + Range}
