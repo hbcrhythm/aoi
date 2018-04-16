@@ -101,7 +101,7 @@ update_obj(Obj = #aoi_obj{pos = OldPos}, NewPos, TriggerParams, Aoi = #aoi{tower
 				{OldWatchers2, DelWatchers, AddWatchers} = neaten(OldWatchers, NewWatchers),
 				case TriggerParams of
 					undefined ->
-						cluster_event_stdlib:event2_trigger(?AOI_EVENT_DICT, ?AOI_EVENT_UPDATE_OBJECT, [{NewObj, OldWatchers2, DelWatchers, AddWatchers}, TriggerParams]);
+						cluster_event_stdlib:event2_trigger(?AOI_EVENT_DICT, ?AOI_EVENT_UPDATE_OBJECT, [{NewObj, OldWatchers2, DelWatchers, AddWatchers}]);
 					_ ->
 						cluster_event_stdlib:event2_trigger(?AOI_EVENT_DICT, ?AOI_EVENT_UPDATE_OBJECT, [{NewObj, OldWatchers2, DelWatchers, AddWatchers}, TriggerParams])
 				end,
