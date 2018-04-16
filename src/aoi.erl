@@ -3,7 +3,7 @@
 -include("aoi.hrl").
 
 %% API exports
--export([aoi/5, aoi/6, add_obj/1, add_obj/3, remove_obj/1, remove_obj/3, update_obj/2, update_obj/4, add_watcher/1, add_watcher/3, remove_watcher/1, remove_watcher/3, update_watcher/2, update_watcher/3, update_watcher/5]).
+-export([aoi/5, aoi/6, add_obj/2, add_obj/4, remove_obj/2, remove_obj/4, update_obj/3, update_obj/5, add_watcher/1, add_watcher/3, remove_watcher/1, remove_watcher/3, update_watcher/3, update_watcher/4, update_watcher/6]).
 -export([get_ids_by_pos/2, get_ids_by_pos/3, get_ids_by_types/3, get_ids_by_types/4]).
 -export([param2obj/6, param2pos/3, obj2param/1, pos2param/1]).
 
@@ -28,9 +28,9 @@ aoi(Width, Height, TowerWidth, TowerHeight, Range, Callback) ->
 	cluster_event_stdlib:init(?AOI_EVENT_DICT),
 	Callback(Aoi).
 
-add_obj(Obj = #aoi_obj{}) ->
-	add_obj(Obj, ?DEFAULT_CALLBACK_GET, ?DEFAULT_CALLBACK_PUT).
-add_obj(Obj = #aoi_obj{pos = Pos}, Aoi = #aoi{towers = Towers}, Callback) ->
+add_obj(Obj = #aoi_obj{}, TriggerParams) ->
+	add_obj(Obj, TriggerParams, ?DEFAULT_CALLBACK_GET, ?DEFAULT_CALLBACK_PUT).
+add_obj(Obj = #aoi_obj{pos = Pos}, TriggerParams, Aoi = #aoi{towers = Towers}, Callback) ->
 	check_pos(Pos, Aoi) andalso begin 
 		#aoi_pos{x = X, y = Y} = trans_pos(Pos, Aoi),
 		{value, Tower} = gb_trees:lookup({X, Y}, Towers),
@@ -39,16 +39,16 @@ add_obj(Obj = #aoi_obj{pos = Pos}, Aoi = #aoi{towers = Towers}, Callback) ->
 				Towers2 = gb_trees:update({X, Y}, Tower2, Towers),
 				Aoi2 = Aoi#aoi{towers = Towers2},
 				Callback(Aoi2),
-				cluster_event_stdlib:event2_trigger(?AOI_EVENT_DICT, ?AOI_EVENT_ADD_OBJECT, [{Obj, Watchers}]),
+				cluster_event_stdlib:event2_trigger(?AOI_EVENT_DICT, ?AOI_EVENT_ADD_OBJECT, [{Obj, Watchers}, TriggerParams]),
 				true;
 			true ->
 				true
 		end
 	end.
 
-remove_obj(Obj) ->
-	remove_obj(Obj, ?DEFAULT_CALLBACK_GET, ?DEFAULT_CALLBACK_PUT).
-remove_obj(Obj = #aoi_obj{pos = Pos}, Aoi = #aoi{towers = Towers}, Callback) ->
+remove_obj(Obj, TriggerParams) ->
+	remove_obj(Obj, TriggerParams, ?DEFAULT_CALLBACK_GET, ?DEFAULT_CALLBACK_PUT).
+remove_obj(Obj = #aoi_obj{pos = Pos}, TriggerParams, Aoi = #aoi{towers = Towers}, Callback) ->
 	check_pos(Pos, Aoi) andalso begin
 		#aoi_pos{x = X, y = Y} = trans_pos(Pos, Aoi),
 		{value, Tower} = gb_trees:lookup({X, Y}, Towers),
@@ -57,16 +57,16 @@ remove_obj(Obj = #aoi_obj{pos = Pos}, Aoi = #aoi{towers = Towers}, Callback) ->
 				Towers2 = gb_trees:update({X, Y}, Tower2, Towers),
 				Aoi2 = Aoi#aoi{towers = Towers2},
 				Callback(Aoi2),
-				cluster_event_stdlib:event2_trigger(?AOI_EVENT_DICT, ?AOI_EVENT_REMOVE_OBJECT, [{Obj, Watchers}]),
+				cluster_event_stdlib:event2_trigger(?AOI_EVENT_DICT, ?AOI_EVENT_REMOVE_OBJECT, [{Obj, Watchers}, TriggerParams]),
 				true;
 			true ->
 				true
 		end
 	end.
 
-update_obj(Obj, NewPos) ->
-	update_obj(Obj, NewPos, ?DEFAULT_CALLBACK_GET, ?DEFAULT_CALLBACK_PUT).
-update_obj(Obj = #aoi_obj{pos = OldPos}, NewPos, Aoi = #aoi{towers = Towers}, Callback) ->
+update_obj(Obj, NewPos, TriggerParams) ->
+	update_obj(Obj, NewPos, TriggerParams, ?DEFAULT_CALLBACK_GET, ?DEFAULT_CALLBACK_PUT).
+update_obj(Obj = #aoi_obj{pos = OldPos}, NewPos, TriggerParams, Aoi = #aoi{towers = Towers}, Callback) ->
 	check_pos(OldPos, Aoi) andalso check_pos(NewPos, Aoi) andalso
 	begin
 		#aoi_pos{x = OldX, y = OldY} = trans_pos(OldPos, Aoi),
@@ -83,11 +83,11 @@ update_obj(Obj = #aoi_obj{pos = OldPos}, NewPos, Aoi = #aoi{towers = Towers}, Ca
 				Aoi2 = Aoi#aoi{towers = Towers3},
 				Callback(Aoi2),
 				{OldWatchers2, DelWatchers, AddWatchers} = neaten(OldWatchers, NewWatchers),
-				cluster_event_stdlib:event2_trigger(?AOI_EVENT_DICT, ?AOI_EVENT_UPDATE_OBJECT, [{NewObj, OldWatchers2, DelWatchers, AddWatchers}]),
+				cluster_event_stdlib:event2_trigger(?AOI_EVENT_DICT, ?AOI_EVENT_UPDATE_OBJECT, [{NewObj, OldWatchers2, DelWatchers, AddWatchers}, TriggerParams]),
 				true;
 			true ->
 				{value, #aoi_tower{watchers = OldWatchers}} = gb_trees:lookup({OldX, OldY}, Towers),
-				cluster_event_stdlib:event2_trigger(?AOI_EVENT_DICT, ?AOI_EVENT_UPDATE_OBJECT, [{NewObj, OldWatchers}]),
+				cluster_event_stdlib:event2_trigger(?AOI_EVENT_DICT, ?AOI_EVENT_UPDATE_OBJECT, [{NewObj, OldWatchers}, TriggerParams]),
 				true				
 		end
 	end.
@@ -134,11 +134,11 @@ remove_watcher(Watcher = #aoi_obj{pos = Pos, range = Range}, Aoi = #aoi{max_x = 
 		true
 	end.
 
-update_watcher(Watcher = #aoi_obj{range = Range}, NewPos) ->
-	update_watcher(Watcher, NewPos, Range).
-update_watcher(Watcher, NewPos, NewRange) ->
-	update_watcher(Watcher, NewPos, NewRange, ?DEFAULT_CALLBACK_GET, ?DEFAULT_CALLBACK_PUT).
-update_watcher(Watcher = #aoi_obj{pos = OldPos, range = OldRange}, NewPos, NewRange, Aoi = #aoi{max_x = MaxX, max_y = MaxY, range_limit = RangeLimit, towers = Towers}, Callback) ->
+update_watcher(Watcher = #aoi_obj{range = Range}, NewPos, TriggerParams) ->
+	update_watcher(Watcher, NewPos, Range, TriggerParams).
+update_watcher(Watcher, NewPos, NewRange, TriggerParams) ->
+	update_watcher(Watcher, NewPos, NewRange, TriggerParams, ?DEFAULT_CALLBACK_GET, ?DEFAULT_CALLBACK_PUT).
+update_watcher(Watcher = #aoi_obj{pos = OldPos, range = OldRange}, NewPos, NewRange, TriggerParams, Aoi = #aoi{max_x = MaxX, max_y = MaxY, range_limit = RangeLimit, towers = Towers}, Callback) ->
 	check_pos(OldPos, Aoi) andalso check_pos(NewPos, Aoi) andalso begin 
 		P1 = #aoi_pos{x = OldX, y = OldY} = trans_pos(OldPos, Aoi),
 		P2 = #aoi_pos{x = NewX, y = NewY} = trans_pos(NewPos, Aoi),
@@ -173,7 +173,7 @@ update_watcher(Watcher = #aoi_obj{pos = OldPos, range = OldRange}, NewPos, NewRa
 				{DelIds, Towers3} = lists:foldl(FDel, {[], Towers2}, RemoveTowers),
 				Aoi2 = Aoi#aoi{towers = Towers3},
 				Callback(Aoi2),
-				cluster_event_stdlib:event2_trigger(?AOI_EVENT_DICT, ?AOI_EVENT_UPDATE_WATCHER, [{Watcher, AddIds, DelIds}]),
+				cluster_event_stdlib:event2_trigger(?AOI_EVENT_DICT, ?AOI_EVENT_UPDATE_WATCHER, [{Watcher, AddIds, DelIds}, TriggerParams]),
 				true
 		end
 	end.
