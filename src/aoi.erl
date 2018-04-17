@@ -21,9 +21,9 @@ aoi(Width, Height, TowerWidth, TowerHeight, Range, Callback) ->
 		,tower_width = TowerWidth
 		,tower_height = TowerHeight
 		,range_limit = Range
-		,max_x = trunc(Width / TowerWidth) - 1
-		,max_y = trunc(Height / TowerHeight) - 1
-		,towers = aoi_towers(trunc(Width / TowerWidth) - 1, trunc(Height / TowerHeight) - 1)
+		,max_x = util:ceil(Width / TowerWidth) - 1
+		,max_y = util:ceil(Height / TowerHeight) - 1
+		,towers = aoi_towers(util:ceil(Width / TowerWidth) - 1, util:ceil(Height / TowerHeight) - 1)
 	},
 	cluster_event_stdlib:init(?AOI_EVENT_DICT),
 	Callback(Aoi).
@@ -307,7 +307,7 @@ check_pos(#aoi_pos{x = X, y = Y}, #aoi{width = Width, height = Height}) when X <
 check_pos(_, _) -> true.
 
 trans_pos(#aoi_pos{x = X, y = Y}, #aoi{tower_width = TowerWidth, tower_height = TowerHeight}) ->
-	#aoi_pos{x = trunc(X / TowerWidth), y = trunc(Y / TowerHeight)}.	
+	#aoi_pos{x = aoi_util:floor(X / TowerWidth), y = aoi_util:floor(Y / TowerHeight)}.	
 
 get_pos_limit(#aoi_pos{x = X, y = Y}, Range, {MaxX, MaxY}) ->
 	StartX = max(0, X - Range),
