@@ -52,10 +52,15 @@ add_watcher(#aoi_obj{id = Id, type = Type}, Tower = #aoi_tower{watchers = Watche
 			Tower2 = Tower#aoi_tower{watchers = Watchers2},
 			Tower2;
 		{Type, TypeList} ->
-			TypeList2 = [Id | TypeList],
-			Watchers2 = lists:keyreplace(Type, 1, Watchers, {Type, TypeList2}),
-			Tower2 = Tower#aoi_tower{watchers = Watchers2},
-			Tower2
+			case lists:member(Id, TypeList) of
+				true ->
+					Tower;
+				false ->
+					TypeList2 = [Id | TypeList],
+					Watchers2 = lists:keyreplace(Type, 1, Watchers, {Type, TypeList2}),
+					Tower2 = Tower#aoi_tower{watchers = Watchers2},
+					Tower2
+			end
 	end.
 
 remove_watcher(#aoi_obj{id = Id, type = Type}, Tower = #aoi_tower{watchers = Watchers}) ->
