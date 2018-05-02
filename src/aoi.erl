@@ -224,10 +224,14 @@ pos2param(#aoi_pos{x = X, y = Y, dir = Dir}) ->
 
 get_ids_by_pos(Pos, Range) ->
 	get_ids_by_pos(Pos, Range, ?DEFAULT_CALLBACK_GET).
-get_ids_by_pos(Pos, Range, Aoi = #aoi{max_x = MaxX, max_y = MaxY, towers = Towers}) ->
+get_ids_by_pos(Pos, Range, Aoi = #aoi{range_limit = RangeLimit, max_x = MaxX, max_y = MaxY, towers = Towers}) ->
 	check_pos(Pos, Aoi) andalso Range >= 0 andalso begin 
 		P = trans_pos(Pos, Aoi),
-		{{StartX, StartY}, {EndX, EndY}} = get_pos_limit(P, Range, {MaxX, MaxY}),
+		Range2 = case Range > RangeLimit of
+					true -> RangeLimit;
+					false -> Range
+				end,
+		{{StartX, StartY}, {EndX, EndY}} = get_pos_limit(P, Range2, {MaxX, MaxY}),
 		F = fun({X, Y} , Acc) ->
 			{value, Tower} = gb_trees:lookup({X, Y}, Towers),
 			Ids = aoi_tower:get_ids(Tower),
@@ -239,9 +243,13 @@ get_ids_by_pos(Pos, Range, Aoi = #aoi{max_x = MaxX, max_y = MaxY, towers = Tower
 get_ids_by_types(Pos, Range, Types) when is_list(Types) ->
 	get_ids_by_types(Pos, Range, Types, ?DEFAULT_CALLBACK_GET).
 get_ids_by_types(Pos, Range, Types, Aoi = #aoi{range_limit = RangeLimit, max_x = MaxX, max_y = MaxY, towers = Towers}) when is_list(Types) ->
-	check_pos(Pos, Aoi) andalso Range >= 0 andalso Range =< RangeLimit andalso begin
+	check_pos(Pos, Aoi) andalso Range >= 0 andalso begin
 		P = trans_pos(Pos, Aoi),
-		{{StartX, StartY}, {EndX, EndY}} = get_pos_limit(P, Range, {MaxX, MaxY}),
+		Range2 = case Range > RangeLimit of
+					true -> RangeLimit;
+					false -> Range
+				end,
+		{{StartX, StartY}, {EndX, EndY}} = get_pos_limit(P, Range2, {MaxX, MaxY}),
 		F = fun({X, Y} , Acc) ->
 			{value, Tower} = gb_trees:lookup({X, Y}, Towers),
 			Result = aoi_tower:get_ids_by_types(Types, Tower),
