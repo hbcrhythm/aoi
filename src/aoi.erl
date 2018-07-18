@@ -21,9 +21,9 @@ aoi(Width, Height, TowerWidth, TowerHeight, Range, Callback) ->
 		,tower_width = TowerWidth
 		,tower_height = TowerHeight
 		,range_limit = Range
-		,max_x = util:ceil(Width / TowerWidth) - 1
-		,max_y = util:ceil(Height / TowerHeight) - 1
-		,towers = aoi_towers(util:ceil(Width / TowerWidth) - 1, util:ceil(Height / TowerHeight) - 1)
+		,max_x = ceil(Width / TowerWidth) - 1
+		,max_y = ceil(Height / TowerHeight) - 1
+		,towers = aoi_towers(ceil(Width / TowerWidth) - 1, ceil(Height / TowerHeight) - 1)
 	},
 	cluster_event_stdlib:init(?AOI_EVENT_DICT),
 	Callback(Aoi).
